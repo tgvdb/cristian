@@ -54,7 +54,7 @@
       const div = document.createElement('div');
       div.className = 'card';
       div.innerHTML = `
-        <img src="${card.imageBase64 || 'images/' + (card.image || 'card_placeholder.png')}" alt="${card.name}" />
+        <img src="${card.imageBase64 || (card.image || 'card_placeholder.png')}" alt="${card.name}" />
         <div class="country">${card.country}</div>
       `;
       div.onclick = () => {
