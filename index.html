@@ -4,28 +4,30 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CardWallet</title>
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 0; padding: 16px; background-color: #f9f9f9; }
     h1 { text-align: center; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 20px; }
-    .card { position: relative; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer; }
-    .card img { width: 100%; display: block; }
+    button { padding: 12px 24px; background-color: #4CAF50; color: white; border: none; border-radius: 8px; margin: 6px; font-size: 16px; cursor: pointer; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 20px; }
+    .card { position: relative; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer; background-color: white; }
+    .card img { width: 100%; display: block; height: auto; }
     .country { position: absolute; bottom: 8px; right: 8px; padding: 4px 6px; border-radius: 6px; font-weight: bold; background-color: rgba(255,255,255,0.8); color: #000; }
-    .fullscreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; padding: 16px; }
+    .fullscreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; padding: 16px; }
     .fullscreen img, .fullscreen svg { max-width: 90vw; max-height: 35vh; border-radius: 12px; }
     .barcode-info { background-color: white; padding: 12px; margin-top: 16px; font-size: 16px; border-radius: 8px; text-align: center; color: #000; }
-    #addCardBtn, #importImgBtn { display: block; margin: 8px auto; padding: 12px 24px; background-color: #4CAF50; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
     #formContainer { margin-top: 20px; display: none; text-align: center; }
     input { padding: 8px; margin: 6px; font-size: 16px; width: 200px; }
   </style>
 </head>
 <body>
 <h1>CardWallet</h1>
+
 <button id="addCardBtn">Adaugă Card prin Scanare</button>
 <button id="importImgBtn">Importă imagine card (.png/.jpg)</button>
 <input type="file" id="imgInput" accept="image/png, image/jpeg" style="display:none" />
+
 <div id="formContainer">
   <div id="reader" style="width:300px; margin:auto;"></div>
   <p id="scanResult"></p>
@@ -33,7 +35,9 @@
   <input type="text" id="countryCode" placeholder="Țară (ROU, ITA)">
   <button onclick="saveCard()">Salvează Cardul</button>
 </div>
+
 <div class="grid" id="cardGrid"></div>
+
 <div id="fullscreen" class="fullscreen" style="display: none;">
   <svg id="barcodeSvg"></svg>
   <div class="barcode-info" id="cardDetails"></div>
@@ -46,39 +50,40 @@
   const barcodeSvg = document.getElementById('barcodeSvg');
   const cardDetails = document.getElementById('cardDetails');
   let tempImageBase64 = null;
+  let longPressTimer = null;
 
   function renderCards() {
     grid.innerHTML = "";
     cardData.forEach((card, index) => {
       const div = document.createElement('div');
       div.className = 'card';
+      const imageSrc = card.imageBase64 || `https://tgvdb.github.io/cristian/${card.image || 'card_placeholder.png'}`;
       div.innerHTML = `
-        <img src="${card.imageBase64 || 'images/' + (card.image || 'card_placeholder.png')}" alt="${card.name}" />
+        <img src="${imageSrc}" alt="${card.name}" />
         <div class="country">${card.country}</div>
       `;
+
+      // Tap = deschide fullscreen cu codul
       div.onclick = () => {
         JsBarcode("#barcodeSvg", card.code, { format: "CODE128", lineColor: "#000", width: 2, height: 100 });
         cardDetails.innerHTML = `<strong>${card.name}</strong><br>${card.country}<br>${card.code}`;
         fullscreen.style.display = 'flex';
-      }
-      div.oncontextmenu = (e) => {
-        e.preventDefault();
-        if (confirm("Ștergi cardul?")) {
-          cardData.splice(index, 1);
-          localStorage.setItem("cards", JSON.stringify(cardData));
-          renderCards();
-        }
-      }
-      div.addEventListener('touchstart', () => {
-        div.pressTimer = setTimeout(() => {
-          if (confirm("Ștergi cardul?")) {
+      };
+
+      // Long press (iPhone/Android) = ștergere
+      div.onmousedown = div.ontouchstart = () => {
+        longPressTimer = setTimeout(() => {
+          if (confirm("Ștergi acest card?")) {
             cardData.splice(index, 1);
             localStorage.setItem("cards", JSON.stringify(cardData));
             renderCards();
           }
-        }, 1000);
-      });
-      div.addEventListener('touchend', () => clearTimeout(div.pressTimer));
+        }, 800);
+      };
+      div.onmouseup = div.ontouchend = () => {
+        clearTimeout(longPressTimer);
+      };
+
       grid.appendChild(div);
     });
   }
@@ -87,7 +92,7 @@
     fullscreen.style.display = 'none';
     barcodeSvg.innerHTML = '';
     cardDetails.textContent = '';
-  }
+  };
 
   document.getElementById("addCardBtn").onclick = () => {
     document.getElementById("formContainer").style.display = 'block';
@@ -97,11 +102,11 @@
       document.getElementById("scanResult").setAttribute("data-code", qrCodeMessage);
       html5QrCode.stop();
     }).catch(err => console.error(err));
-  }
+  };
 
   document.getElementById("importImgBtn").onclick = () => {
     document.getElementById("imgInput").click();
-  }
+  };
 
   document.getElementById("imgInput").onchange = (e) => {
     const file = e.target.files[0];
@@ -110,16 +115,17 @@
     reader.onload = function(evt) {
       tempImageBase64 = evt.target.result;
       alert("Imagine importată. Acum scanează sau adaugă cardul manual.");
-    }
+    };
     reader.readAsDataURL(file);
-  }
+  };
 
   function saveCard() {
-    const name = document.getElementById("cardName").value;
-    const country = document.getElementById("countryCode").value;
+    const name = document.getElementById("cardName").value.trim();
+    const country = document.getElementById("countryCode").value.trim();
     const code = document.getElementById("scanResult").getAttribute("data-code");
     if (!name || !country || !code) return alert("Completează toate câmpurile și scanează codul.");
-    const normalized = name.trim().toLowerCase().replace(/ /g, "_");
+
+    const normalized = name.toLowerCase().replace(/ /g, "_");
     const card = {
       name,
       country,
@@ -130,6 +136,7 @@
       card.imageBase64 = tempImageBase64;
       delete card.image;
     }
+
     cardData.push(card);
     localStorage.setItem("cards", JSON.stringify(cardData));
     tempImageBase64 = null;
