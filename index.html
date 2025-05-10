@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CardWallet Web</title>
+  <title>CardWallet</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
   <style>
@@ -41,7 +41,6 @@
 
 <script>
   let cardData = JSON.parse(localStorage.getItem("cards") || "[]");
-
   const grid = document.getElementById('cardGrid');
   const fullscreen = document.getElementById('fullscreen');
   const barcodeSvg = document.getElementById('barcodeSvg');
@@ -54,7 +53,7 @@
       const div = document.createElement('div');
       div.className = 'card';
       div.innerHTML = `
-        <img src="${card.imageBase64 || (card.image || 'card_placeholder.png')}" alt="${card.name}" />
+        <img src="${card.imageBase64 || 'images/' + (card.image || 'card_placeholder.png')}" alt="${card.name}" />
         <div class="country">${card.country}</div>
       `;
       div.onclick = () => {
@@ -70,6 +69,16 @@
           renderCards();
         }
       }
+      div.addEventListener('touchstart', () => {
+        div.pressTimer = setTimeout(() => {
+          if (confirm("Ștergi cardul?")) {
+            cardData.splice(index, 1);
+            localStorage.setItem("cards", JSON.stringify(cardData));
+            renderCards();
+          }
+        }, 1000);
+      });
+      div.addEventListener('touchend', () => clearTimeout(div.pressTimer));
       grid.appendChild(div);
     });
   }
@@ -119,7 +128,7 @@
     };
     if (tempImageBase64) {
       card.imageBase64 = tempImageBase64;
-      delete card.image; // ignorăm numele imaginii
+      delete card.image;
     }
     cardData.push(card);
     localStorage.setItem("cards", JSON.stringify(cardData));
