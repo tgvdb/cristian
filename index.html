@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ro">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CardWallet</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -10,9 +10,10 @@
     body { font-family: Arial, sans-serif; margin: 0; padding: 16px; background-color: #f9f9f9; }
     h1 { text-align: center; }
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 20px; }
-    .card { position: relative; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.2); cursor: pointer; }
+    .card { position: relative; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
     .card img { width: 100%; display: block; }
     .country { position: absolute; bottom: 8px; right: 8px; padding: 4px 6px; border-radius: 6px; font-weight: bold; background-color: rgba(255,255,255,0.8); color: #000; }
+    .delete-btn { position: absolute; top: 8px; right: 8px; background-color: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; font-size: 16px; line-height: 20px; text-align: center; }
     .fullscreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; padding: 16px; }
     .fullscreen img, .fullscreen svg { max-width: 90vw; max-height: 35vh; border-radius: 12px; }
     .barcode-info { background-color: white; padding: 12px; margin-top: 16px; font-size: 16px; border-radius: 8px; text-align: center; color: #000; }
@@ -38,7 +39,6 @@
   <svg id="barcodeSvg"></svg>
   <div class="barcode-info" id="cardDetails"></div>
 </div>
-
 <script>
   let cardData = JSON.parse(localStorage.getItem("cards") || "[]");
   const grid = document.getElementById('cardGrid');
@@ -53,24 +53,27 @@
       const div = document.createElement('div');
       div.className = 'card';
       div.innerHTML = `
-        <img src="${card.imageBase64 || 'images/' + (card.image || 'card_placeholder.png')}" alt="${card.name}" />
+        <img src="${card.imageBase64 || card.image}" alt="${card.name}" />
         <div class="country">${card.country}</div>
+        <button class="delete-btn" onclick="deleteCard(${index})">&times;</button>
       `;
-      div.onclick = () => {
-        JsBarcode("#barcodeSvg", card.code, { format: "CODE128", lineColor: "#000", width: 2, height: 100 });
-        cardDetails.innerHTML = `<strong>${card.name}</strong><br>${card.country}<br>${card.code}`;
-        fullscreen.style.display = 'flex';
-      };
-      div.ondblclick = () => {
-        if (confirm(`Ștergi cardul ${card.name}?`)) {
-          cardData.splice(index, 1);
-          localStorage.setItem("cards", JSON.stringify(cardData));
-          renderCards();
-          showToast(`✅ Cardul „${card.name}” a fost șters`);
+      div.onclick = (e) => {
+        if (e.target.tagName.toLowerCase() !== 'button') {
+          JsBarcode("#barcodeSvg", card.code, { format: "CODE128", lineColor: "#000", width: 2, height: 100 });
+          cardDetails.innerHTML = `<strong>${card.name}</strong><br>${card.country}<br>${card.code}`;
+          fullscreen.style.display = 'flex';
         }
       };
       grid.appendChild(div);
     });
+  }
+
+  function deleteCard(index) {
+    if (confirm("Ștergi cardul?")) {
+      cardData.splice(index, 1);
+      localStorage.setItem("cards", JSON.stringify(cardData));
+      renderCards();
+    }
   }
 
   fullscreen.onclick = () => {
@@ -125,25 +128,6 @@
     tempImageBase64 = null;
     renderCards();
     document.getElementById("formContainer").style.display = 'none';
-    showToast("✅ Card salvat cu succes!");
-  }
-
-  function showToast(message) {
-    const toast = document.createElement("div");
-    toast.textContent = message;
-    toast.style.position = "fixed";
-    toast.style.bottom = "20px";
-    toast.style.left = "50%";
-    toast.style.transform = "translateX(-50%)";
-    toast.style.background = "#333";
-    toast.style.color = "#fff";
-    toast.style.padding = "12px 20px";
-    toast.style.borderRadius = "8px";
-    toast.style.zIndex = 10000;
-    toast.style.fontSize = "16px";
-    toast.style.opacity = "0.9";
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 2500);
   }
 
   renderCards();
