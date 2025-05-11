@@ -75,7 +75,7 @@
       div.className = 'card';
       div.innerHTML = `
         <button class="delete-btn" onclick="deleteCard(event, ${index})">&times;</button>
-        <img src="${card.imageBase64 || '/images/' + (card.image || 'card_placeholder.png')}" alt="${card.name}" onerror="this.src='images/card_placeholder.png'" />
+        <img src="${card.imageBase64 || (card.image || 'card_placeholder.png')}" alt="${card.name}" onerror="this.src='images/card_placeholder.png'" />
         <div class="country">${card.country}</div>
       `;
       div.onclick = () => showCard(card);
