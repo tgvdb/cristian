@@ -30,21 +30,27 @@
     .fullscreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; padding: 16px; }
     .fullscreen img, .fullscreen svg { max-width: 90vw; max-height: 35vh; border-radius: 12px; }
     .barcode-info { background-color: white; padding: 12px; margin-top: 16px; font-size: 16px; border-radius: 8px; text-align: center; color: #000; }
-    #addCardBtn, #importImgBtn { display: block; margin: 8px auto; padding: 12px 24px; background-color: #4CAF50; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+    #addCardBtn, #enterCodeBtn, #importImgBtn { display: inline-block; margin: 8px; padding: 12px 24px; background-color: #4CAF50; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
     #formContainer { margin-top: 20px; display: none; text-align: center; }
     input { padding: 8px; margin: 6px; font-size: 16px; width: 200px; }
   </style>
 </head>
 <body>
 <h1>CardWallet</h1>
-<button id="addCardBtn">Adaugă Card prin Scanare</button>
-<button id="importImgBtn">Importă imagine card (.png/.jpg)</button>
+<div style="text-align:center">
+  <button id="addCardBtn">Adaugă Card prin Scanare</button>
+  <button id="enterCodeBtn">Introdu cod manual</button>
+</div>
+<div style="text-align:center">
+  <button id="importImgBtn">Importă imagine card (.png/.jpg)</button>
+</div>
 <input type="file" id="imgInput" accept="image/png, image/jpeg" style="display:none" />
 <div id="formContainer">
-  <div id="reader" style="width:300px; margin:auto;"></div>
+  <div id="reader" style="width:300px; margin:auto; display:none;"></div>
   <p id="scanResult"></p>
   <input type="text" id="cardName" placeholder="Denumire Card">
   <input type="text" id="countryCode" placeholder="Țară (ROU, ITA)">
+  <input type="text" id="manualCode" placeholder="Cod manual (cifre/litere)">
   <button onclick="saveCard()">Salvează Cardul</button>
 </div>
 <div class="grid" id="cardGrid"></div>
@@ -60,6 +66,7 @@
   const barcodeSvg = document.getElementById('barcodeSvg');
   const cardDetails = document.getElementById('cardDetails');
   let tempImageBase64 = null;
+  let currentCode = null;
 
   function renderCards() {
     grid.innerHTML = "";
@@ -68,7 +75,7 @@
       div.className = 'card';
       div.innerHTML = `
         <button class="delete-btn" onclick="deleteCard(event, ${index})">&times;</button>
-        <img src="${card.imageBase64 || (card.image || 'card_placeholder.png')}" alt="${card.name}" onerror="this.src='card_placeholder.png'" />
+        <img src="${card.imageBase64 || 'images/' + (card.image || 'card_placeholder.png')}" alt="${card.name}" onerror="this.src='images/card_placeholder.png'" />
         <div class="country">${card.country}</div>
       `;
       div.onclick = () => showCard(card);
@@ -77,7 +84,7 @@
   }
 
   function deleteCard(e, index) {
-    e.stopPropagation(); // important pentru iPhone / Safari
+    e.stopPropagation();
     if (confirm("Ștergi cardul?")) {
       cardData.splice(index, 1);
       localStorage.setItem("cards", JSON.stringify(cardData));
@@ -99,12 +106,19 @@
 
   document.getElementById("addCardBtn").onclick = () => {
     document.getElementById("formContainer").style.display = 'block';
+    document.getElementById("reader").style.display = 'block';
     const html5QrCode = new Html5Qrcode("reader");
     html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, qrCodeMessage => {
       document.getElementById("scanResult").textContent = `Cod scanat: ${qrCodeMessage}`;
-      document.getElementById("scanResult").setAttribute("data-code", qrCodeMessage);
+      currentCode = qrCodeMessage;
       html5QrCode.stop();
     }).catch(err => console.error(err));
+  }
+
+  document.getElementById("enterCodeBtn").onclick = () => {
+    document.getElementById("formContainer").style.display = 'block';
+    document.getElementById("reader").style.display = 'none';
+    currentCode = null;
   }
 
   document.getElementById("importImgBtn").onclick = () => {
@@ -117,7 +131,7 @@
     const reader = new FileReader();
     reader.onload = function(evt) {
       tempImageBase64 = evt.target.result;
-      alert("Imagine importată. Acum scanează sau adaugă cardul manual.");
+      alert("Imagine importată. Acum completează datele cardului.");
     }
     reader.readAsDataURL(file);
   }
@@ -125,15 +139,11 @@
   function saveCard() {
     const name = document.getElementById("cardName").value;
     const country = document.getElementById("countryCode").value;
-    const code = document.getElementById("scanResult").getAttribute("data-code");
-    if (!name || !country || !code) return alert("Completează toate câmpurile și scanează codul.");
+    const manual = document.getElementById("manualCode").value;
+    const code = currentCode || manual;
+    if (!name || !country || !code) return alert("Completează toate câmpurile și codul de bare.");
     const normalized = name.trim().toLowerCase().replace(/ /g, "_");
-    const card = {
-      name,
-      country,
-      code,
-      image: `card_${normalized}.png`
-    };
+    const card = { name, country, code, image: `card_${normalized}.png` };
     if (tempImageBase64) {
       card.imageBase64 = tempImageBase64;
       delete card.image;
@@ -141,6 +151,7 @@
     cardData.push(card);
     localStorage.setItem("cards", JSON.stringify(cardData));
     tempImageBase64 = null;
+    currentCode = null;
     renderCards();
     document.getElementById("formContainer").style.display = 'none';
   }
